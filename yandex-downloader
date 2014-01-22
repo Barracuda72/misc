@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Script for downloading files from Yandex.Disk
+# Скрипт для загрузки файлов с Яндекс.Диска
+# 23.01.2014, GPLv3+
+
+YA_LINK="$1"
+PAGE="`mktemp yadisk-XXXXXXX`"
+COOKIE="`mktemp yacookie-XXXXXXX`"
+AGENT="Mozilla/5.0 (X11; Linux x86_64; rv:26.0) Gecko/20100101 Firefox/26.0"
+
+wget --no-check-certificate -O ${PAGE} --keep-session-cookies\
+  --save-cookies=${COOKIE} -U "${AGENT}" ${YA_LINK}
+
+YA_CKEY="`cat ${PAGE} | sed 's/,/\n/g' | grep \\"ckey\\" | cut -d'"' -f4`"
+echo ${YA_CKEY}
+YA_HASH="`cat ${PAGE} | sed 's/,/\n/g' | grep \\"hash\\": | cut -d'"' -f4`"
+echo ${YA_HASH}
+YA_NAME="`cat ${PAGE} | sed 's/,/\n/g' | grep ^\\"name\\": | grep -v script | \
+  cut -d'"' -f4`"
+echo ${YA_NAME}
+rm ${PAGE}
+
+wget --no-check-certificate -O -\
+  --post-data="_ckey=${YA_CKEY}&_name=getLinkFileDownload&hash=${YA_HASH}"\
+  --load-cookies=${COOKIE} -U "${AGENT}"\
+  "https://disk.yandex.ru/handlers.jsx" | grep \"url\" | \
+  cut -d'"' -f4 | wget --no-check-certificate -U "${AGENT}" \
+  --load-cookies=${COOKIE} -i - -O "${YA_NAME}"
+rm ${COOKIE}
